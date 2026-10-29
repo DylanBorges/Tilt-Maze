@@ -1,56 +1,89 @@
-# Welcome to your Expo app 👋
+# Tilt Maze — Jogo de Labirinto Controlado por Movimento
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Tilt Maze** é um jogo de quebra-cabeça 2D para dispositivos móveis desenvolvido com **React Native**, **Expo**, **TypeScript**, **Expo Router**, **Expo Sensors** (`Accelerometer`) e **AsyncStorage**.
 
-## Get started
+Os jogadores guiam uma bolinha por labirintos progressivamente mais desafiadores inclinando fisicamente o smartphone, desviando de paredes e armadilhas (buracos perigosos) para alcançar o ponto de chegada no menor tempo possível.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Principais Funcionalidades Implementadas
 
-2. Start the app
+1. **Menu Principal (`src/app/index.tsx`)**
+   - Iniciar / Continuar partida na fase mais avançada desbloqueada.
+   - Acesso rápido à Seleção de Fases, Recordes e Configurações.
+   - Resumo visual de fases concluídas, fase desbloqueada, sensibilidade atual e guia de instruções rápidas.
 
-   ```bash
-   npx expo start
-   ```
+2. **Movimento por Inclinação e Controlador de Sensores (`src/sensors/useTiltSensor.ts` & `src/sensors/sensorMath.ts`)**
+   - Leitura em tempo real do acelerômetro nativo via `expo-sensors` (`Accelerometer`).
+   - Filtro passa-baixa exponencial (`applyLowPassFilter`) e zona morta (`applyDeadzone`) para eliminar tremores e ruídos do sensor.
+   - Calibração de posição neutra confortável (`calibratePosition`) e ajuste de sensibilidade (`0.4x` a `2.5x`).
+   - Controles simulados opcionais na tela (`VirtualTiltControls`) e suporte às setas do teclado (`WASD`/Setas) para facilitar testes em emuladores e navegadores.
+   - **Gerenciamento de Ciclo de Vida (RF-12)**: A assinatura do sensor e o cronômetro são imediatamente interrompidos quando o jogo é pausado, concluído, quando a tela é desmontada ou quando o aplicativo vai para segundo plano (`AppState`).
 
-In the output, you'll find options to open the app in a
+3. **Física 2D, Colisões e Armadilhas (`src/game/engine.ts`)**
+   - Simulação contínua em coordenadas normalizadas da grade (independente de resolução de tela) com sub-passos por quadro (`SUB_STEPS = 3`).
+   - Detecção de colisão precisa (Círculo vs. AABB das células de parede) com deslizamento suave ao longo dos corredores.
+   - Detecção de armadilhas (`CELL_HAZARD`): cair em um buraco vermelho emite alerta visual e reposiciona a bolinha no ponto de partida mantendo o cronômetro ativo.
+   - Detecção de chegada (`CELL_GOAL`): aciona imediatamente a conclusão da fase e registra o tempo.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+4. **5 Fases Progressivas Validadas (`src/levels/levelsData.ts`)**
+   - **Fase 1 — Primeiros Passos** (*Iniciante*, grade 9×9): Corredores largos para praticar a inclinação.
+   - **Fase 2 — Curvas de Atenção** (*Fácil*, grade 11×9): Introduz curvas fechadas e as primeiras armadilhas.
+   - **Fase 3 — Encruzilhada Perigosa** (*Médio*, grade 13×11): Múltiplos caminhos e armadilhas estratégicas.
+   - **Fase 4 — Ziguezague de Precisão** (*Difícil*, grade 13×11): Passagens estreitas exigindo controle fino.
+   - **Fase 5 — Desafio Mestre** (*Especialista*, grade 15×11): Labirinto completo de alta complexidade.
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+5. **Persistência Local Segura (`src/storage/storage.ts` & `src/context/GameContext.tsx`)**
+   - Armazena fases concluídas, melhores tempos por fase, maior fase desbloqueada, sensibilidade e calibração via `@react-native-async-storage/async-storage`.
+   - Validação e sanitização completa dos dados carregados com inicialização segura de valores padrão caso os dados estejam ausentes ou inválidos.
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## Estrutura do Projeto
 
-```bash
-npm run reset-project
+```text
+src/
+├── app/
+│   ├── _layout.tsx               # Configuração de rotas (Expo Router Stack) e provedores
+│   ├── index.tsx                 # Tela de Menu Principal
+│   ├── levels.tsx                # Tela de Seleção de Fases (com opção de Modo Livre para avaliação)
+│   ├── game.tsx                  # Tela de Jogo, HUD, Cronômetro, Modal de Pausa e Conclusão
+│   ├── records.tsx               # Tela de Recordes Locais e Estatísticas
+│   └── settings.tsx              # Tela de Configurações, Sensibilidade, Calibração e Instruções
+├── components/
+│   ├── MazeBoard.tsx             # Renderização otimizada do labirinto 2D e da bolinha
+│   ├── TiltIndicator.tsx         # Indicador visual de nível/bolha da inclinação atual
+│   └── VirtualTiltControls.tsx   # Controles direcionais simulados para emulador/testes
+├── context/
+│   └── GameContext.tsx           # Estado global de progresso e configurações persistentes
+├── game/
+│   └── engine.ts                 # Motor de física 2D, colisões AABB, armadilhas e cronômetro
+├── levels/
+│   └── levelsData.ts             # Definição das 5 fases e validação de caminhos (BFS)
+├── sensors/
+│   ├── sensorMath.ts             # Filtro passa-baixa, zona morta, calibração e sensibilidade
+│   └── useTiltSensor.ts          # Hook do Acelerômetro com controle de AppState e limpeza
+├── storage/
+│   └── storage.ts                # Persistência e validação com AsyncStorage
+├── types/
+│   └── game.ts                   # Tipagens TypeScript do domínio do jogo
+└── __tests__/
+    └── gameLogic.test.ts         # Testes automatizados de lógica, colisões, sensores e fases
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+---
 
-### Other setup steps
+## Como Executar o Projeto
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### 1. Instalar dependências
+```bash
+npm install
+```
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### 2. Iniciar o servidor de desenvolvimento do Expo
+```bash
+npx expo start
+```
+- **Dispositivo físico Android (Recomendado para testar o acelerômetro real)**: Abra o aplicativo **Expo Go** no seu smartphone Android e escaneie o QR Code exibido no terminal.
+- **Emulador Android**: Pressione `a` no terminal (ou execute `npm run android`). Use os controles simulados na tela ou o painel *Virtual Sensors* do Android Studio Emulator.
+- **Navegador Web**: Pressione `w` no terminal (ou execute `npm run web`). Você pode controlar a inclinação pelos botões na tela ou pelas teclas `W, A, S, D` / Setas do teclado.
