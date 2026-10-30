@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MazeBoard } from '../components/MazeBoard';
+import { MiniMap } from '../components/MiniMap';
 import { TiltIndicator } from '../components/TiltIndicator';
 import { VirtualTiltControls } from '../components/VirtualTiltControls';
 import { useGame } from '../context/GameContext';
@@ -24,9 +25,14 @@ import {
   formatTimeMs,
   stepBallPhysics,
 } from '../game/engine';
+import {
+  generateProceduralMaze,
+  PROCEDURAL_PRESETS,
+  ProceduralSize,
+} from '../game/mazeGenerator';
 import { getLevelById, LEVELS } from '../levels/levelsData';
 import { useTiltSensor } from '../sensors/useTiltSensor';
-import { BallState, GameStatus } from '../types/game';
+import { BallState, GameStatus, LevelDefinition } from '../types/game';
 
 interface CompletionSummary {
   elapsedMs: number;
@@ -35,17 +41,28 @@ interface CompletionSummary {
 }
 
 export default function GameScreen() {
-  const params = useLocalSearchParams<{ levelId?: string }>();
-  const parsedId = Number(params.levelId);
-  const level = useMemo(
-    () => getLevelById(Number.isFinite(parsedId) ? parsedId : 1) ?? LEVELS[0],
-    [parsedId]
-  );
+  const params = useLocalSearchParams<{
+    levelId?: string;
+    procedural?: string;
+    seed?: string;
+  }>();
 
-  return <GameSession key={level.id} level={level} />;
+  const level = useMemo<LevelDefinition>(() => {
+    if (params.procedural) {
+      const presetKey = (params.procedural as ProceduralSize) || 'medium';
+      const preset = PROCEDURAL_PRESETS[presetKey] ?? PROCEDURAL_PRESETS.medium;
+      const seedNum = params.seed ? Number(params.seed) : undefined;
+      return generateProceduralMaze(preset, seedNum);
+    }
+
+    const parsedId = Number(params.levelId);
+    return getLevelById(Number.isFinite(parsedId) ? parsedId : 1) ?? LEVELS[0];
+  }, [params.levelId, params.procedural, params.seed]);
+
+  return <GameSession key={`${level.id}-${params.seed ?? 'std'}`} level={level} />;
 }
 
-function GameSession({ level }: { level: (typeof LEVELS)[number] }) {
+function GameSession({ level }: { level: LevelDefinition }) {
   const router = useRouter();
   const { progress, settings, recordLevelCompletion, calibratePosition } =
     useGame();
@@ -314,6 +331,11 @@ function GameSession({ level }: { level: (typeof LEVELS)[number] }) {
           maxHeight={arenaSize.height}
           hazardFlash={hazardFlash}
         />
+
+        {/* Minimapa / Radar para labirintos grandes com câmera móvel */}
+        {(level.cols > 11 || level.rows > 11) && (
+          <MiniMap level={level} ball={ball} maxSize={76} />
+        )}
       </View>
 
       {/* Controles Simulados Opcionais (Emulador / Web / Acessibilidade) */}

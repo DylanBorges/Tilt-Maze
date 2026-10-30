@@ -30,10 +30,7 @@ const StaticMazeGrid = memo(function StaticMazeGrid({
       ]}
     >
       {level.grid.map((rowCells, rIdx) => (
-        <View
-          key={`row-${rIdx}`}
-          style={[styles.row, { height: cellSize }]}
-        >
+        <View key={`row-${rIdx}`} style={[styles.row, { height: cellSize }]}>
           {rowCells.map((cell: CellCode, cIdx: number) => {
             const isWall = cell === CELL_WALL;
             const isStart = cell === CELL_START;
@@ -126,6 +123,8 @@ interface MazeBoardProps {
   hazardFlash?: boolean;
 }
 
+const MIN_COMFORTABLE_CELL_SIZE = 34;
+
 export function MazeBoard({
   level,
   ball,
@@ -133,13 +132,37 @@ export function MazeBoard({
   maxHeight,
   hazardFlash = false,
 }: MazeBoardProps) {
-  const cellSize = Math.max(
-    18,
-    Math.floor(Math.min(maxWidth / level.cols, maxHeight / level.rows))
+  // Determina se o labirinto precisa do sistema de Câmera Móvel
+  const naturalCellSize = Math.floor(
+    Math.min(maxWidth / level.cols, maxHeight / level.rows)
   );
+  const useCamera = naturalCellSize < MIN_COMFORTABLE_CELL_SIZE;
+
+  const cellSize = useCamera
+    ? MIN_COMFORTABLE_CELL_SIZE
+    : Math.max(18, naturalCellSize);
 
   const boardWidth = level.cols * cellSize;
   const boardHeight = level.rows * cellSize;
+
+  // Viewport visível da arena
+  const viewportWidth = useCamera ? maxWidth : boardWidth;
+  const viewportHeight = useCamera ? maxHeight : boardHeight;
+
+  // Cálculo da Câmera Virtual: centraliza a bolinha e trava nas bordas do labirinto
+  const ballPixelX = ball.x * cellSize;
+  const ballPixelY = ball.y * cellSize;
+
+  let camX = 0;
+  let camY = 0;
+
+  if (useCamera) {
+    const rawCamX = viewportWidth / 2 - ballPixelX;
+    const rawCamY = viewportHeight / 2 - ballPixelY;
+    camX = Math.min(0, Math.max(viewportWidth - boardWidth, rawCamX));
+    camY = Math.min(0, Math.max(viewportHeight - boardHeight, rawCamY));
+  }
+
   const ballDiameter = ball.radius * 2 * cellSize;
   const ballLeft = ball.x * cellSize - ballDiameter / 2;
   const ballTop = ball.y * cellSize - ballDiameter / 2;
@@ -149,49 +172,59 @@ export function MazeBoard({
       style={[
         styles.boardWrapper,
         {
-          width: boardWidth + 8,
-          height: boardHeight + 8,
+          width: viewportWidth + 8,
+          height: viewportHeight + 8,
           borderColor: hazardFlash ? '#EF4444' : '#334155',
         },
       ]}
     >
       <View
         style={{
-          width: boardWidth,
-          height: boardHeight,
+          width: viewportWidth,
+          height: viewportHeight,
           position: 'relative',
           overflow: 'hidden',
           borderRadius: 8,
         }}
       >
-        <StaticMazeGrid level={level} cellSize={cellSize} />
-
-        {/* Bolinha controlada pelo jogador */}
+        {/* Container móvel do labirinto com deslocamento de câmera */}
         <View
-          pointerEvents="none"
-          style={[
-            styles.ball,
-            {
-              width: ballDiameter,
-              height: ballDiameter,
-              borderRadius: ballDiameter / 2,
-              backgroundColor: hazardFlash ? '#F87171' : '#38BDF8',
-              transform: [{ translateX: ballLeft }, { translateY: ballTop }],
-            },
-          ]}
+          style={{
+            width: boardWidth,
+            height: boardHeight,
+            position: 'absolute',
+            transform: [{ translateX: camX }, { translateY: camY }],
+          }}
         >
+          <StaticMazeGrid level={level} cellSize={cellSize} />
+
+          {/* Bolinha controlada pelo jogador */}
           <View
+            pointerEvents="none"
             style={[
-              styles.ballHighlight,
+              styles.ball,
               {
-                width: ballDiameter * 0.36,
-                height: ballDiameter * 0.36,
-                borderRadius: ballDiameter * 0.18,
-                top: ballDiameter * 0.16,
-                left: ballDiameter * 0.18,
+                width: ballDiameter,
+                height: ballDiameter,
+                borderRadius: ballDiameter / 2,
+                backgroundColor: hazardFlash ? '#F87171' : '#38BDF8',
+                transform: [{ translateX: ballLeft }, { translateY: ballTop }],
               },
             ]}
-          />
+          >
+            <View
+              style={[
+                styles.ballHighlight,
+                {
+                  width: ballDiameter * 0.36,
+                  height: ballDiameter * 0.36,
+                  borderRadius: ballDiameter * 0.18,
+                  top: ballDiameter * 0.16,
+                  left: ballDiameter * 0.18,
+                },
+              ]}
+            />
+          </View>
         </View>
       </View>
     </View>
@@ -205,6 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     alignSelf: 'center',
+    position: 'relative',
   },
   gridContainer: {
     backgroundColor: '#0F172A',

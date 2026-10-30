@@ -136,6 +136,31 @@ export default function MainMenuScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.navCard,
+              styles.proceduralCard,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={() => router.push('/procedural')}
+          >
+            <View style={[styles.navIconBadge, { backgroundColor: '#7C3AED' }]}>
+              <Text style={styles.navIconText}>🎲</Text>
+            </View>
+            <View style={styles.navTextCol}>
+              <View style={styles.proceduralTitleRow}>
+                <Text style={styles.navTitle}>Labirintos Procedurais</Text>
+                <View style={styles.newFeatureChip}>
+                  <Text style={styles.newFeatureText}>NOVO</Text>
+                </View>
+              </View>
+              <Text style={styles.navDesc}>
+                Fases gigantescas com Câmera Móvel e Radar (até 33×33)
+              </Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.navCard,
               pressed && styles.buttonPressed,
             ]}
             onPress={() => router.push('/records')}
@@ -354,6 +379,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#1E293B',
+  },
+  proceduralCard: {
+    borderColor: 'rgba(124, 58, 237, 0.45)',
+    backgroundColor: 'rgba(124, 58, 237, 0.08)',
+  },
+  proceduralTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  newFeatureChip: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  newFeatureText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '900',
   },
   navIconBadge: {
     width: 42,

@@ -25,6 +25,7 @@ export default function RootLayout() {
         >
           <Stack.Screen name="index" />
           <Stack.Screen name="levels" />
+          <Stack.Screen name="procedural" />
           <Stack.Screen name="game" />
           <Stack.Screen name="records" />
           <Stack.Screen name="settings" />

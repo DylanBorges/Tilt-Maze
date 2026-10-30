@@ -4,6 +4,10 @@ import {
   stepBallPhysics,
 } from '../game/engine';
 import {
+  generateProceduralMaze,
+  PROCEDURAL_PRESETS,
+} from '../game/mazeGenerator';
+import {
   countHazards,
   findCellByType,
   isLevelReachable,
@@ -272,7 +276,37 @@ export function runValidationTests() {
 
   assertEqual(formatTimeMs(65430), '01:05.43');
   console.log(
-    '✔ [6/6] Persistência local, recordes e validação de dados verificados.\n'
+    '✔ [6/7] Persistência local, recordes e validação de dados verificados.'
+  );
+
+  // 7. Geração Procedural e Alcançabilidade Matemática de Labirintos Gigantes
+  for (const presetKey of ['small', 'medium', 'large', 'titan'] as const) {
+    const preset = PROCEDURAL_PRESETS[presetKey];
+    const generated = generateProceduralMaze(preset, 421337);
+
+    assertEqual(
+      generated.rows,
+      preset.rows,
+      `Labirinto procedural deve ter ${preset.rows} linhas.`
+    );
+    assertEqual(
+      generated.cols,
+      preset.cols,
+      `Labirinto procedural deve ter ${preset.cols} colunas.`
+    );
+
+    const start = findCellByType(generated, CELL_START);
+    const goal = findCellByType(generated, CELL_GOAL);
+    assertOk(start, 'Labirinto procedural deve conter ponto de início.');
+    assertOk(goal, 'Labirinto procedural deve conter ponto de chegada.');
+
+    assertOk(
+      isLevelReachable(generated),
+      `Labirinto procedural ${preset.cols}×${preset.rows} deve ser 100% solucionável via BFS.`
+    );
+  }
+  console.log(
+    '✔ [7/7] Geração procedural e alcançabilidade matemática (até 33×33) verificadas.\n'
   );
   console.log('✅ Todos os testes passaram com sucesso!');
 }
