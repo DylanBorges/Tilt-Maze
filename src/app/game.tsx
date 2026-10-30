@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FloatingJoystick } from '../components/FloatingJoystick';
 import { MazeBoard } from '../components/MazeBoard';
 import { MiniMap } from '../components/MiniMap';
 import { TiltIndicator } from '../components/TiltIndicator';
@@ -64,8 +65,25 @@ export default function GameScreen() {
 
 function GameSession({ level }: { level: LevelDefinition }) {
   const router = useRouter();
-  const { progress, settings, recordLevelCompletion, calibratePosition } =
-    useGame();
+  const {
+    progress,
+    settings,
+    recordLevelCompletion,
+    calibratePosition,
+    updateSettings,
+  } = useGame();
+
+  const [joystickActive, setJoystickActive] = useState<boolean>(
+    settings.showVirtualControls
+  );
+
+  const toggleJoystick = () => {
+    setJoystickActive((prev) => {
+      const next = !prev;
+      updateSettings({ showVirtualControls: next });
+      return next;
+    });
+  };
 
   const [status, setStatus] = useState<GameStatus>('playing');
   const [ball, setBall] = useState<BallState>(() =>
@@ -289,6 +307,25 @@ function GameSession({ level }: { level: LevelDefinition }) {
           <Pressable
             style={({ pressed }) => [
               styles.quickBtn,
+              joystickActive ? styles.quickBtnActive : styles.quickBtnInactive,
+              pressed && styles.pressed,
+            ]}
+            onPress={toggleJoystick}
+            accessibilityLabel="Alternar Joystick Flutuante"
+          >
+            <Text
+              style={[
+                styles.quickBtnText,
+                joystickActive ? styles.quickBtnTextActive : styles.quickBtnTextInactive,
+              ]}
+            >
+              {joystickActive ? '🕹️ Joystick: ON' : '🕹️ Joystick: OFF'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.quickBtn,
               pressed && styles.pressed,
             ]}
             onPress={handleQuickCalibrate}
@@ -335,6 +372,15 @@ function GameSession({ level }: { level: LevelDefinition }) {
         {/* Minimapa / Radar para labirintos grandes com câmera móvel */}
         {(level.cols > 11 || level.rows > 11) && (
           <MiniMap level={level} ball={ball} maxSize={76} />
+        )}
+
+        {/* Joystick Flutuante cobre a tela da arena quando ativado */}
+        {joystickActive && (
+          <FloatingJoystick
+            overlayMode
+            onTiltChange={setManualTilt}
+            disabled={status !== 'playing'}
+          />
         )}
       </View>
 
@@ -677,10 +723,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155',
   },
+  quickBtnActive: {
+    backgroundColor: 'rgba(2, 132, 199, 0.25)',
+    borderColor: '#38BDF8',
+  },
+  quickBtnInactive: {
+    backgroundColor: '#1E293B',
+    borderColor: '#334155',
+    opacity: 0.8,
+  },
   quickBtnText: {
     color: '#E2E8F0',
     fontSize: 11,
     fontWeight: '700',
+  },
+  quickBtnTextActive: {
+    color: '#38BDF8',
+    fontWeight: '800',
+  },
+  quickBtnTextInactive: {
+    color: '#94A3B8',
   },
   bannerAlert: {
     backgroundColor: 'rgba(16, 185, 129, 0.2)',

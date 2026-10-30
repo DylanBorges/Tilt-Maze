@@ -202,15 +202,27 @@ export function runValidationTests() {
     'Aumentar a sensibilidade deve ampliar a resposta aos movimentos.'
   );
 
-  // Teste de gravidade e reforço de descida (eixo Y)
+  // Teste de inclinação para frente e descida (eixo Y):
+  // Na postura natural 'handheld', inclinar o topo para a frente diminui y no sensor (ex: 0.1),
+  // resultando em aceleração positiva para baixo no labirinto (+Y).
+  const forwardTilt = processTiltInput(
+    { x: 0, y: 0.1 },
+    { x: 0, y: 0.1 },
+    { ...DEFAULT_SETTINGS, postureMode: 'handheld' }
+  );
+  assertOk(
+    forwardTilt.tilt.y > 0,
+    'Inclinar para a frente deve gerar aceleração positiva para baixo (+Y).'
+  );
+
   const normalGrav = processTiltInput(
-    { x: 0, y: 0.9 },
-    { x: 0, y: 0.9 },
+    { x: 0, y: 0.1 },
+    { x: 0, y: 0.1 },
     { ...DEFAULT_SETTINGS, gravityMultiplier: 1.0, downwardBoost: 1.0 }
   );
   const boostedGrav = processTiltInput(
-    { x: 0, y: 0.9 },
-    { x: 0, y: 0.9 },
+    { x: 0, y: 0.1 },
+    { x: 0, y: 0.1 },
     { ...DEFAULT_SETTINGS, gravityMultiplier: 1.8, downwardBoost: 1.4 }
   );
   assertOk(

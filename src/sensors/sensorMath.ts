@@ -115,13 +115,15 @@ export function processTiltInput(
 ): { smoothed: Vector2D; tilt: Vector2D } {
   const smoothed = applyLowPassFilter(previousSmoothed, mappedRaw);
 
-  // Se o modo for handheld (na mão / vertical), aplicamos a postura natural inicial
+  // Se o modo for handheld (na mão / vertical), usamos a postura natural de ~45° como neutro.
+  // Ao inclinar o topo para a frente (para a bolinha descer), smoothed.y DIMINUI no acelerômetro,
+  // portanto a aceleração para baixo (+Y da tela) é proporcional a (postureOffsetY - smoothed.y).
   const postureOffsetY =
     settings.postureMode === 'handheld' ? HANDHELD_NEUTRAL_PITCH_Y : 0;
 
   const calibratedX = smoothed.x - (settings.calibration?.x ?? 0);
   const calibratedY =
-    smoothed.y - postureOffsetY - (settings.calibration?.y ?? 0);
+    (postureOffsetY - smoothed.y) - (settings.calibration?.y ?? 0);
 
   const deadzone = clampDeadzone(settings.deadzone);
   let filteredX = applyDeadzone(calibratedX, deadzone);

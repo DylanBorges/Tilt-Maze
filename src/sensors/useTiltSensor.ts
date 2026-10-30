@@ -62,25 +62,36 @@ export function useTiltSensor({
     const mx = manualTiltRef.current.x;
     const my = manualTiltRef.current.y;
 
-    // Se o controle manual estiver sendo pressionado, soma/prioriza para permitir testes em emuladores
-    const combinedX = Math.max(-1.5, Math.min(1.5, sx + mx));
-    const combinedY = Math.max(-1.5, Math.min(1.5, sy + my));
+    // Se o controle por toque/joystick estiver ativo, ele tem prioridade total
+    // para que o jogador tenha resposta instantânea sem interferência da postura da mão
+    const isManualActive = Math.hypot(mx, my) > 0.02;
+    const combinedX = isManualActive ? mx : sx;
+    const combinedY = isManualActive ? my : sy;
 
-    combinedTiltRef.current = { x: combinedX, y: combinedY };
+    combinedTiltRef.current = {
+      x: Math.max(-1.8, Math.min(1.8, combinedX)),
+      y: Math.max(-1.8, Math.min(1.8, combinedY)),
+    };
 
     const now = Date.now();
     if (now - lastPreviewUpdateRef.current >= 60) {
       lastPreviewUpdateRef.current = now;
-      setTiltPreview({ x: combinedX, y: combinedY });
+      setTiltPreview(combinedTiltRef.current);
     }
   }, []);
 
   const setManualTilt = useCallback(
     (vector: Vector2D) => {
       const sens = settingsRef.current.sensitivity ?? 1.0;
+      const grav = settingsRef.current.gravityMultiplier ?? 1.25;
+      const boost = settingsRef.current.downwardBoost ?? 1.2;
+
+      // Resposta ágil e potente no analógico, com reforço de descida quando Y > 0
+      const vy = vector.y > 0 ? vector.y * boost : vector.y;
+
       manualTiltRef.current = {
-        x: vector.x * 0.55 * sens,
-        y: vector.y * 0.55 * sens,
+        x: vector.x * 1.2 * sens * (grav / 1.25),
+        y: vy * 1.2 * sens * (grav / 1.25),
       };
       updateCombinedTilt();
     },

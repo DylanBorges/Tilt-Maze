@@ -7,6 +7,7 @@ nvm use 24
 ENV_DIR="/home/dylan/.cache/android-build-env"
 JDK_DIR="$ENV_DIR/jdk21"
 SDK_DIR="$ENV_DIR/sdk"
+BUILD_DIR="/tmp/tilt-maze-apk-build"
 
 export JAVA_HOME="$JDK_DIR"
 export PATH="$JAVA_HOME/bin:$PATH"
@@ -14,14 +15,21 @@ export ANDROID_HOME="$SDK_DIR"
 export ANDROID_SDK_ROOT="$SDK_DIR"
 export PATH="$SDK_DIR/cmdline-tools/latest/bin:$SDK_DIR/platform-tools:$PATH"
 
-echo "=== Compilando APK Release do Tilt Maze ==="
-cd /tmp/tilt-maze-apk-build/android
+echo "=== [1/2] Sincronizando código-fonte atualizado ==="
+mkdir -p "$BUILD_DIR"
+cp -a "/home/dylan/Jogo rani/." "$BUILD_DIR/"
+
+cd "$BUILD_DIR"
+CI=1 npx expo prebuild --platform android --no-install
+
+echo "=== [2/2] Compilando APK Release do Tilt Maze ==="
+cd "$BUILD_DIR/android"
 echo "sdk.dir=$SDK_DIR" > local.properties
 sed -i 's/reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' gradle.properties
 
 ./gradlew assembleRelease --no-daemon
 
-APK_SRC="/tmp/tilt-maze-apk-build/android/app/build/outputs/apk/release/app-release.apk"
+APK_SRC="$BUILD_DIR/android/app/build/outputs/apk/release/app-release.apk"
 APK_DST="/home/dylan/Jogo rani/tilt-maze.apk"
 
 cp -f "$APK_SRC" "$APK_DST"
