@@ -159,12 +159,18 @@ export function runValidationTests() {
   );
   console.log('✔ [4/6] Detecção de armadilhas e conclusão de fase verificadas.');
 
-  // 5. Filtragem do Acelerômetro, Sensibilidade e Calibração (RF-11 e Seção 4.1)
+  // 5. Filtragem do Acelerômetro, Sensibilidade, Gravidade e Postura
   assertEqual(
-    applyDeadzone(0.01, 0.025),
+    applyDeadzone(0.01, 0.035),
     0,
     'Ruído dentro da zona morta deve ser zerado.'
   );
+  assertEqual(
+    applyDeadzone(0.05, 0.035) > 0,
+    true,
+    'Movimento acima da zona morta deve ser transmitido.'
+  );
+
   const filtered = applyLowPassFilter({ x: 0, y: 0 }, { x: 1, y: -1 }, 0.25);
   assertEqual(filtered.x, 0.25);
   assertEqual(filtered.y, -0.25);
@@ -191,10 +197,27 @@ export function runValidationTests() {
     highSens.tilt.x > lowSens.tilt.x,
     'Aumentar a sensibilidade deve ampliar a resposta aos movimentos.'
   );
+
+  // Teste de gravidade e reforço de descida (eixo Y)
+  const normalGrav = processTiltInput(
+    { x: 0, y: 0.9 },
+    { x: 0, y: 0.9 },
+    { ...DEFAULT_SETTINGS, gravityMultiplier: 1.0, downwardBoost: 1.0 }
+  );
+  const boostedGrav = processTiltInput(
+    { x: 0, y: 0.9 },
+    { x: 0, y: 0.9 },
+    { ...DEFAULT_SETTINGS, gravityMultiplier: 1.8, downwardBoost: 1.4 }
+  );
+  assertOk(
+    boostedGrav.tilt.y > normalGrav.tilt.y,
+    'Ajuste de gravidade e reforço para baixo devem acelerar a bolinha no eixo Y.'
+  );
+
   assertEqual(clampSensitivity(99), 2.5);
   assertEqual(clampSensitivity(0.1), 0.4);
   console.log(
-    '✔ [5/6] Filtragem de ruído, calibração e sensibilidade verificadas.'
+    '✔ [5/6] Filtragem de ruído, calibração, postura e gravidade verificadas.'
   );
 
   // 6. Persistência e Sanitização de Dados (RF-09, RF-10 e Seção 5.4)
@@ -210,9 +233,19 @@ export function runValidationTests() {
 
   const corruptedSettings = sanitizeSettings({
     sensitivity: -10,
+    gravityMultiplier: 99,
+    downwardBoost: -5,
+    deadzone: 999,
+    postureMode: 'invalido',
+    virtualControlType: 'invalido',
     calibration: { x: 5, y: 'err' },
   });
   assertEqual(corruptedSettings.sensitivity, 0.4);
+  assertEqual(corruptedSettings.gravityMultiplier, 2.5);
+  assertEqual(corruptedSettings.downwardBoost, 1.0);
+  assertEqual(corruptedSettings.deadzone, 0.12);
+  assertEqual(corruptedSettings.postureMode, 'handheld');
+  assertEqual(corruptedSettings.virtualControlType, 'joystick');
   assertEqual(corruptedSettings.calibration.x, 0.8);
   assertEqual(corruptedSettings.calibration.y, 0);
 

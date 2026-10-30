@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LEVELS } from '../levels/levelsData';
-import { clampSensitivity } from '../sensors/sensorMath';
+import {
+  clampDeadzone,
+  clampDownwardBoost,
+  clampGravityMultiplier,
+  clampSensitivity,
+} from '../sensors/sensorMath';
 import { GameSettings, PlayerProgress } from '../types/game';
 
 const PROGRESS_STORAGE_KEY = '@tilt_maze:progress_v1';
@@ -14,6 +19,11 @@ export const DEFAULT_PROGRESS: PlayerProgress = {
 
 export const DEFAULT_SETTINGS: GameSettings = {
   sensitivity: 1.0,
+  gravityMultiplier: 1.25,
+  downwardBoost: 1.2,
+  deadzone: 0.035,
+  postureMode: 'handheld',
+  virtualControlType: 'joystick',
   calibration: { x: 0, y: 0 },
   showVirtualControls: true,
   invertX: false,
@@ -99,6 +109,29 @@ export function sanitizeSettings(raw: unknown): GameSettings {
       ? clampSensitivity(record.sensitivity)
       : DEFAULT_SETTINGS.sensitivity;
 
+  const gravityMultiplier =
+    typeof record.gravityMultiplier === 'number'
+      ? clampGravityMultiplier(record.gravityMultiplier)
+      : DEFAULT_SETTINGS.gravityMultiplier;
+
+  const downwardBoost =
+    typeof record.downwardBoost === 'number'
+      ? clampDownwardBoost(record.downwardBoost)
+      : DEFAULT_SETTINGS.downwardBoost;
+
+  const deadzone =
+    typeof record.deadzone === 'number'
+      ? clampDeadzone(record.deadzone)
+      : DEFAULT_SETTINGS.deadzone;
+
+  const postureMode =
+    record.postureMode === 'table' ? 'table' : DEFAULT_SETTINGS.postureMode;
+
+  const virtualControlType =
+    record.virtualControlType === 'dpad'
+      ? 'dpad'
+      : DEFAULT_SETTINGS.virtualControlType;
+
   let calX = 0;
   let calY = 0;
   if (record.calibration && typeof record.calibration === 'object') {
@@ -128,6 +161,11 @@ export function sanitizeSettings(raw: unknown): GameSettings {
 
   return {
     sensitivity,
+    gravityMultiplier,
+    downwardBoost,
+    deadzone,
+    postureMode,
+    virtualControlType,
     calibration: { x: calX, y: calY },
     showVirtualControls,
     invertX,

@@ -1,16 +1,57 @@
 import { GameSettings, Vector2D } from '../types/game';
 
 export const LOW_PASS_ALPHA = 0.28;
-export const SENSOR_DEADZONE = 0.025;
-export const MAX_TILT_MAGNITUDE = 1.5;
+export const DEFAULT_DEADZONE = 0.035;
+export const MIN_DEADZONE = 0.01;
+export const MAX_DEADZONE = 0.12;
+
+export const MAX_TILT_MAGNITUDE = 1.8;
 export const MIN_SENSITIVITY = 0.4;
 export const MAX_SENSITIVITY = 2.5;
+
+export const MIN_GRAVITY_MULTIPLIER = 0.5;
+export const MAX_GRAVITY_MULTIPLIER = 2.5;
+export const DEFAULT_GRAVITY_MULTIPLIER = 1.25;
+
+export const MIN_DOWNWARD_BOOST = 1.0;
+export const MAX_DOWNWARD_BOOST = 1.8;
+export const DEFAULT_DOWNWARD_BOOST = 1.2;
+
+/**
+ * Offset padrão do eixo Y quando o celular é segurado naturalmente na mão
+ * em modo retrato com ângulo de visão confortável (~40° a 50° em relação à horizontal).
+ */
+export const HANDHELD_NEUTRAL_PITCH_Y = 0.55;
 
 export function clampSensitivity(value: number): number {
   if (!Number.isFinite(value)) return 1.0;
   return Math.max(
     MIN_SENSITIVITY,
     Math.min(MAX_SENSITIVITY, Math.round(value * 10) / 10)
+  );
+}
+
+export function clampDeadzone(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_DEADZONE;
+  return Math.max(
+    MIN_DEADZONE,
+    Math.min(MAX_DEADZONE, Math.round(value * 1000) / 1000)
+  );
+}
+
+export function clampGravityMultiplier(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_GRAVITY_MULTIPLIER;
+  return Math.max(
+    MIN_GRAVITY_MULTIPLIER,
+    Math.min(MAX_GRAVITY_MULTIPLIER, Math.round(value * 10) / 10)
+  );
+}
+
+export function clampDownwardBoost(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_DOWNWARD_BOOST;
+  return Math.max(
+    MIN_DOWNWARD_BOOST,
+    Math.min(MAX_DOWNWARD_BOOST, Math.round(value * 10) / 10)
   );
 }
 
@@ -31,7 +72,10 @@ export function applyLowPassFilter(
 /**
  * Aplica zona morta suave para evitar deslocamentos involuntários quando o aparelho está quase plano.
  */
-export function applyDeadzone(value: number, deadzone: number = SENSOR_DEADZONE): number {
+export function applyDeadzone(
+  value: number,
+  deadzone: number = DEFAULT_DEADZONE
+): number {
   const abs = Math.abs(value);
   if (abs <= deadzone) {
     return 0;
@@ -56,8 +100,13 @@ export function mapRawAccelerometerToScreenAxes(
 }
 
 /**
- * Processa a leitura do sensor aplicando filtragem de ruído, calibração de posição neutra,
- * zona morta e multiplicador de sensibilidade configurável.
+ * Processa a leitura do sensor aplicando:
+ * 1. Filtragem passa-baixa de ruído
+ * 2. Compensação de postura (Modo Na Mão em pé vs. Mesa deitado)
+ * 3. Offset de calibração manual do usuário
+ * 4. Zona morta suave configurável (deadzone)
+ * 5. Reforço de descida vertical (downwardBoost)
+ * 6. Multiplicador de sensibilidade e escala geral de gravidade
  */
 export function processTiltInput(
   mappedRaw: Vector2D,
@@ -66,15 +115,29 @@ export function processTiltInput(
 ): { smoothed: Vector2D; tilt: Vector2D } {
   const smoothed = applyLowPassFilter(previousSmoothed, mappedRaw);
 
-  const calibratedX = smoothed.x - (settings.calibration?.x ?? 0);
-  const calibratedY = smoothed.y - (settings.calibration?.y ?? 0);
+  // Se o modo for handheld (na mão / vertical), aplicamos a postura natural inicial
+  const postureOffsetY =
+    settings.postureMode === 'handheld' ? HANDHELD_NEUTRAL_PITCH_Y : 0;
 
-  const filteredX = applyDeadzone(calibratedX);
-  const filteredY = applyDeadzone(calibratedY);
+  const calibratedX = smoothed.x - (settings.calibration?.x ?? 0);
+  const calibratedY =
+    smoothed.y - postureOffsetY - (settings.calibration?.y ?? 0);
+
+  const deadzone = clampDeadzone(settings.deadzone);
+  let filteredX = applyDeadzone(calibratedX, deadzone);
+  let filteredY = applyDeadzone(calibratedY, deadzone);
+
+  // Reforço ergonômico para descida (quando Y > 0 / inclinação para frente)
+  const downwardBoost = clampDownwardBoost(settings.downwardBoost);
+  if (filteredY > 0) {
+    filteredY *= downwardBoost;
+  }
 
   const sensitivity = clampSensitivity(settings.sensitivity);
-  let tiltX = filteredX * sensitivity;
-  let tiltY = filteredY * sensitivity;
+  const gravityScale = clampGravityMultiplier(settings.gravityMultiplier);
+
+  let tiltX = filteredX * sensitivity * gravityScale;
+  let tiltY = filteredY * sensitivity * gravityScale;
 
   const magnitude = Math.hypot(tiltX, tiltY);
   if (magnitude > MAX_TILT_MAGNITUDE) {

@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Vector2D } from '../types/game';
+import { FloatingJoystick } from './FloatingJoystick';
 
 interface VirtualTiltControlsProps {
   onChangeTilt: (vector: Vector2D) => void;
   isSensorAvailable: boolean;
+  defaultMode?: 'joystick' | 'dpad';
 }
 
 export function VirtualTiltControls({
   onChangeTilt,
   isSensorAvailable,
+  defaultMode = 'joystick',
 }: VirtualTiltControlsProps) {
+  const [mode, setMode] = useState<'joystick' | 'dpad'>(defaultMode);
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
   const handlePressIn = (key: string, vec: Vector2D) => {
@@ -24,131 +28,198 @@ export function VirtualTiltControls({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.infoColumn}>
-        <Text style={styles.title}>Inclinação Simulada</Text>
-        <Text style={styles.subtitle}>
-          {isSensorAvailable
-            ? 'Incline o celular ou use o controle ao lado para testar.'
-            : 'Acelerômetro físico não detectado. Use os botões ou setas do teclado.'}
-        </Text>
-      </View>
-
-      <View style={styles.padGrid}>
-        <View style={styles.padRow}>
-          <Pressable
-            onPressIn={() => handlePressIn('UL', { x: -0.7, y: -0.7 })}
-            onPressOut={handlePressOut}
-            style={[
-              styles.padBtn,
-              styles.cornerBtn,
-              activeKey === 'UL' && styles.padBtnActive,
-            ]}
-          >
-            <Text style={styles.padBtnText}>↖</Text>
-          </Pressable>
-          <Pressable
-            onPressIn={() => handlePressIn('U', { x: 0, y: -1 })}
-            onPressOut={handlePressOut}
-            style={[styles.padBtn, activeKey === 'U' && styles.padBtnActive]}
-          >
-            <Text style={styles.padBtnText}>▲</Text>
-          </Pressable>
-          <Pressable
-            onPressIn={() => handlePressIn('UR', { x: 0.7, y: -0.7 })}
-            onPressOut={handlePressOut}
-            style={[
-              styles.padBtn,
-              styles.cornerBtn,
-              activeKey === 'UR' && styles.padBtnActive,
-            ]}
-          >
-            <Text style={styles.padBtnText}>↗</Text>
-          </Pressable>
+    <View style={styles.wrapper}>
+      {/* Barra de título e alternador de modo de toque */}
+      <View style={styles.headerRow}>
+        <View style={styles.infoCol}>
+          <Text style={styles.headerTitle}>Controles na Tela</Text>
+          <Text style={styles.headerSubtitle}>
+            {isSensorAvailable
+              ? 'Use o toque na tela ou incline o aparelho'
+              : 'Sensor inativo. Controle com o dedo ou setas'}
+          </Text>
         </View>
 
-        <View style={styles.padRow}>
+        <View style={styles.modeTabs}>
           <Pressable
-            onPressIn={() => handlePressIn('L', { x: -1, y: 0 })}
-            onPressOut={handlePressOut}
-            style={[styles.padBtn, activeKey === 'L' && styles.padBtnActive]}
+            style={[styles.modeTab, mode === 'joystick' && styles.modeTabActive]}
+            onPress={() => setMode('joystick')}
           >
-            <Text style={styles.padBtnText}>◀</Text>
+            <Text
+              style={[
+                styles.modeTabText,
+                mode === 'joystick' && styles.modeTabTextActive,
+              ]}
+            >
+              🕹️ Joystick
+            </Text>
           </Pressable>
-          <View style={styles.padCenter}>
-            <View style={styles.padCenterDot} />
+          <Pressable
+            style={[styles.modeTab, mode === 'dpad' && styles.modeTabActive]}
+            onPress={() => setMode('dpad')}
+          >
+            <Text
+              style={[
+                styles.modeTabText,
+                mode === 'dpad' && styles.modeTabTextActive,
+              ]}
+            >
+              🔲 D-Pad
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Exibição condicional: Joystick Flutuante ou D-Pad Clássico */}
+      {mode === 'joystick' ? (
+        <FloatingJoystick onTiltChange={onChangeTilt} />
+      ) : (
+        <View style={styles.dpadContainer}>
+          <View style={styles.padGrid}>
+            <View style={styles.padRow}>
+              <Pressable
+                onPressIn={() => handlePressIn('UL', { x: -0.7, y: -0.7 })}
+                onPressOut={handlePressOut}
+                style={[
+                  styles.padBtn,
+                  styles.cornerBtn,
+                  activeKey === 'UL' && styles.padBtnActive,
+                ]}
+              >
+                <Text style={styles.padBtnText}>↖</Text>
+              </Pressable>
+              <Pressable
+                onPressIn={() => handlePressIn('U', { x: 0, y: -1 })}
+                onPressOut={handlePressOut}
+                style={[styles.padBtn, activeKey === 'U' && styles.padBtnActive]}
+              >
+                <Text style={styles.padBtnText}>▲</Text>
+              </Pressable>
+              <Pressable
+                onPressIn={() => handlePressIn('UR', { x: 0.7, y: -0.7 })}
+                onPressOut={handlePressOut}
+                style={[
+                  styles.padBtn,
+                  styles.cornerBtn,
+                  activeKey === 'UR' && styles.padBtnActive,
+                ]}
+              >
+                <Text style={styles.padBtnText}>↗</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.padRow}>
+              <Pressable
+                onPressIn={() => handlePressIn('L', { x: -1, y: 0 })}
+                onPressOut={handlePressOut}
+                style={[styles.padBtn, activeKey === 'L' && styles.padBtnActive]}
+              >
+                <Text style={styles.padBtnText}>◀</Text>
+              </Pressable>
+              <View style={styles.padCenter}>
+                <View style={styles.padCenterDot} />
+              </View>
+              <Pressable
+                onPressIn={() => handlePressIn('R', { x: 1, y: 0 })}
+                onPressOut={handlePressOut}
+                style={[styles.padBtn, activeKey === 'R' && styles.padBtnActive]}
+              >
+                <Text style={styles.padBtnText}>▶</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.padRow}>
+              <Pressable
+                onPressIn={() => handlePressIn('DL', { x: -0.7, y: 0.7 })}
+                onPressOut={handlePressOut}
+                style={[
+                  styles.padBtn,
+                  styles.cornerBtn,
+                  activeKey === 'DL' && styles.padBtnActive,
+                ]}
+              >
+                <Text style={styles.padBtnText}>↙</Text>
+              </Pressable>
+              <Pressable
+                onPressIn={() => handlePressIn('D', { x: 0, y: 1 })}
+                onPressOut={handlePressOut}
+                style={[styles.padBtn, activeKey === 'D' && styles.padBtnActive]}
+              >
+                <Text style={styles.padBtnText}>▼</Text>
+              </Pressable>
+              <Pressable
+                onPressIn={() => handlePressIn('DR', { x: 0.7, y: 0.7 })}
+                onPressOut={handlePressOut}
+                style={[
+                  styles.padBtn,
+                  styles.cornerBtn,
+                  activeKey === 'DR' && styles.padBtnActive,
+                ]}
+              >
+                <Text style={styles.padBtnText}>↘</Text>
+              </Pressable>
+            </View>
           </View>
-          <Pressable
-            onPressIn={() => handlePressIn('R', { x: 1, y: 0 })}
-            onPressOut={handlePressOut}
-            style={[styles.padBtn, activeKey === 'R' && styles.padBtnActive]}
-          >
-            <Text style={styles.padBtnText}>▶</Text>
-          </Pressable>
         </View>
-
-        <View style={styles.padRow}>
-          <Pressable
-            onPressIn={() => handlePressIn('DL', { x: -0.7, y: 0.7 })}
-            onPressOut={handlePressOut}
-            style={[
-              styles.padBtn,
-              styles.cornerBtn,
-              activeKey === 'DL' && styles.padBtnActive,
-            ]}
-          >
-            <Text style={styles.padBtnText}>↙</Text>
-          </Pressable>
-          <Pressable
-            onPressIn={() => handlePressIn('D', { x: 0, y: 1 })}
-            onPressOut={handlePressOut}
-            style={[styles.padBtn, activeKey === 'D' && styles.padBtnActive]}
-          >
-            <Text style={styles.padBtnText}>▼</Text>
-          </Pressable>
-          <Pressable
-            onPressIn={() => handlePressIn('DR', { x: 0.7, y: 0.7 })}
-            onPressOut={handlePressOut}
-            style={[
-              styles.padBtn,
-              styles.cornerBtn,
-              activeKey === 'DR' && styles.padBtnActive,
-            ]}
-          >
-            <Text style={styles.padBtnText}>↘</Text>
-          </Pressable>
-        </View>
-      </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    gap: 8,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-    gap: 12,
+    gap: 8,
   },
-  infoColumn: {
+  infoCol: {
     flex: 1,
   },
-  title: {
+  headerTitle: {
     color: '#E2E8F0',
     fontSize: 13,
     fontWeight: '700',
-    marginBottom: 2,
   },
-  subtitle: {
+  headerSubtitle: {
     color: '#94A3B8',
     fontSize: 11,
-    lineHeight: 15,
+  },
+  modeTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#0F172A',
+    borderRadius: 8,
+    padding: 2,
+    gap: 2,
+  },
+  modeTab: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  modeTabActive: {
+    backgroundColor: '#0284C7',
+  },
+  modeTabText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  modeTabTextActive: {
+    color: '#F8FAFC',
+  },
+  dpadContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
   },
   padGrid: {
     gap: 4,
@@ -158,9 +229,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   padBtn: {
-    width: 34,
-    height: 30,
-    borderRadius: 7,
+    width: 38,
+    height: 32,
+    borderRadius: 8,
     backgroundColor: '#0F172A',
     borderWidth: 1,
     borderColor: '#475569',
@@ -181,8 +252,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   padCenter: {
-    width: 34,
-    height: 30,
+    width: 38,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },

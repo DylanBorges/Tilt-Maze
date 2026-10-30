@@ -12,8 +12,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TiltIndicator } from '../components/TiltIndicator';
 import { useGame } from '../context/GameContext';
 import {
+  clampDeadzone,
+  clampDownwardBoost,
+  clampGravityMultiplier,
   clampSensitivity,
+  MAX_DEADZONE,
+  MAX_GRAVITY_MULTIPLIER,
   MAX_SENSITIVITY,
+  MIN_DEADZONE,
+  MIN_GRAVITY_MULTIPLIER,
   MIN_SENSITIVITY,
 } from '../sensors/sensorMath';
 import { useTiltSensor } from '../sensors/useTiltSensor';
@@ -23,6 +30,20 @@ const SENSITIVITY_PRESETS = [
   { label: 'Padrão', value: 1.0 },
   { label: 'Rápida', value: 1.4 },
   { label: 'Alta', value: 1.8 },
+];
+
+const GRAVITY_PRESETS = [
+  { label: 'Lenta', value: 0.8 },
+  { label: 'Padrão', value: 1.2 },
+  { label: 'Rápida', value: 1.6 },
+  { label: 'Máxima', value: 2.2 },
+];
+
+const DEADZONE_PRESETS = [
+  { label: 'Sensível', value: 0.015 },
+  { label: 'Padrão', value: 0.035 },
+  { label: 'Firme', value: 0.06 },
+  { label: 'Ampla', value: 0.1 },
 ];
 
 export default function SettingsScreen() {
@@ -49,6 +70,21 @@ export default function SettingsScreen() {
     updateSettings({ sensitivity: next });
   };
 
+  const handleAdjustGravity = (delta: number) => {
+    const next = clampGravityMultiplier(settings.gravityMultiplier + delta);
+    updateSettings({ gravityMultiplier: next });
+  };
+
+  const handleAdjustDownwardBoost = (delta: number) => {
+    const next = clampDownwardBoost(settings.downwardBoost + delta);
+    updateSettings({ downwardBoost: next });
+  };
+
+  const handleAdjustDeadzone = (delta: number) => {
+    const next = clampDeadzone(settings.deadzone + delta);
+    updateSettings({ deadzone: next });
+  };
+
   const handleCalibrateNow = async () => {
     const offset = getCurrentNeutralOffset();
     await calibratePosition(offset);
@@ -59,12 +95,19 @@ export default function SettingsScreen() {
 
   const handleResetCalibration = async () => {
     await resetCalibration();
-    showTempMessage('Calibração redefinida para a posição plana padrão (0, 0).');
+    showTempMessage('Calibração redefinida para a posição padrão.');
   };
 
-  const progressRatio =
+  const sensRatio =
     (settings.sensitivity - MIN_SENSITIVITY) /
     (MAX_SENSITIVITY - MIN_SENSITIVITY);
+
+  const gravRatio =
+    (settings.gravityMultiplier - MIN_GRAVITY_MULTIPLIER) /
+    (MAX_GRAVITY_MULTIPLIER - MIN_GRAVITY_MULTIPLIER);
+
+  const deadRatio =
+    (settings.deadzone - MIN_DEADZONE) / (MAX_DEADZONE - MIN_DEADZONE);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -81,7 +124,7 @@ export default function SettingsScreen() {
         <View style={styles.headerTitleCol}>
           <Text style={styles.headerTitle}>Configurações</Text>
           <Text style={styles.headerSub}>
-            Sensibilidade, calibração do sensor e instruções
+            Acessibilidade, física, postura e controles
           </Text>
         </View>
       </View>
@@ -96,18 +139,242 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* 1. Sensibilidade do Movimento */}
+        {/* 1. Postura do Celular (Vertical Natural vs. Deitado) */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>📱 Postura do Aparelho</Text>
+          <Text style={styles.cardDescription}>
+            Escolha como você segura o celular para definir a posição neutra
+            (onde a bolinha fica totalmente parada).
+          </Text>
+
+          <View style={styles.postureOptionsRow}>
+            <Pressable
+              style={[
+                styles.postureCard,
+                settings.postureMode === 'handheld' && styles.postureCardActive,
+              ]}
+              onPress={() => updateSettings({ postureMode: 'handheld' })}
+            >
+              <Text style={styles.postureIcon}>📱</Text>
+              <Text style={styles.postureTitle}>Na Mão / Em Pé</Text>
+              <Text style={styles.postureDesc}>
+                Inclinado a ~45° (Mais ergonômico e divertido)
+              </Text>
+              {settings.postureMode === 'handheld' && (
+                <View style={styles.postureBadge}>
+                  <Text style={styles.postureBadgeText}>✓ Ativo</Text>
+                </View>
+              )}
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.postureCard,
+                settings.postureMode === 'table' && styles.postureCardActive,
+              ]}
+              onPress={() => updateSettings({ postureMode: 'table' })}
+            >
+              <Text style={styles.postureIcon}>🛌</Text>
+              <Text style={styles.postureTitle}>Deitado / Mesa</Text>
+              <Text style={styles.postureDesc}>
+                Plano a 0° (Celular repousado sobre a mesa)
+              </Text>
+              {settings.postureMode === 'table' && (
+                <View style={styles.postureBadge}>
+                  <Text style={styles.postureBadgeText}>✓ Ativo</Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
+        </View>
+
+        {/* 2. Gravidade e Velocidade (Eixo Y e Descida) */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Sensibilidade do Movimento</Text>
-            <Text style={styles.sensitivityBadge}>
+            <Text style={styles.cardTitle}>⚡ Gravidade & Velocidade</Text>
+            <Text style={styles.valBadge}>
+              {settings.gravityMultiplier.toFixed(1)}x
+            </Text>
+          </View>
+          <Text style={styles.cardDescription}>
+            Define a intensidade da força gravitacional sobre a bolinha ao
+            inclinar o aparelho.
+          </Text>
+
+          <View style={styles.sliderRow}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.stepBtn,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => handleAdjustGravity(-0.1)}
+            >
+              <Text style={styles.stepBtnText}>−</Text>
+            </Pressable>
+
+            <View style={styles.barTrack}>
+              <View
+                style={[
+                  styles.barFill,
+                  {
+                    width: `${Math.max(4, Math.min(100, gravRatio * 100))}%`,
+                    backgroundColor: '#10B981',
+                  },
+                ]}
+              />
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.stepBtn,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => handleAdjustGravity(0.1)}
+            >
+              <Text style={styles.stepBtnText}>+</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.presetsRow}>
+            {GRAVITY_PRESETS.map((preset) => {
+              const isSelected =
+                Math.abs(settings.gravityMultiplier - preset.value) < 0.05;
+              return (
+                <Pressable
+                  key={preset.label}
+                  style={[
+                    styles.presetChip,
+                    isSelected && styles.presetChipActive,
+                  ]}
+                  onPress={() =>
+                    updateSettings({ gravityMultiplier: preset.value })
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.presetChipText,
+                      isSelected && styles.presetChipTextActive,
+                    ]}
+                  >
+                    {preset.label} ({preset.value.toFixed(1)}x)
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Reforço de descida / eixo Y */}
+          <View style={styles.subConfigRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.subConfigTitle}>Reforço de Descida (Eixo Y)</Text>
+              <Text style={styles.subConfigDesc}>
+                Compensa a inclinação para frente para a bolinha descer mais rápido.
+              </Text>
+            </View>
+            <View style={styles.smallStepControls}>
+              <Pressable
+                style={styles.smallStepBtn}
+                onPress={() => handleAdjustDownwardBoost(-0.1)}
+              >
+                <Text style={styles.smallStepBtnText}>−</Text>
+              </Pressable>
+              <Text style={styles.smallStepValue}>
+                {settings.downwardBoost.toFixed(1)}x
+              </Text>
+              <Pressable
+                style={styles.smallStepBtn}
+                onPress={() => handleAdjustDownwardBoost(0.1)}
+              >
+                <Text style={styles.smallStepBtnText}>+</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        {/* 3. Tamanho da Zona Neutra (Zona Morta / Deadzone) */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>🎯 Zona Neutra (Zona Morta)</Text>
+            <Text style={styles.valBadge}>
+              {(settings.deadzone * 100).toFixed(1)}%
+            </Text>
+          </View>
+          <Text style={styles.cardDescription}>
+            O quanto o aparelho pode se mexer sem que a bolinha saia do lugar.
+            Aumente para mãos trêmulas ou diminua para resposta instantânea.
+          </Text>
+
+          <View style={styles.sliderRow}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.stepBtn,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => handleAdjustDeadzone(-0.01)}
+            >
+              <Text style={styles.stepBtnText}>−</Text>
+            </Pressable>
+
+            <View style={styles.barTrack}>
+              <View
+                style={[
+                  styles.barFill,
+                  {
+                    width: `${Math.max(4, Math.min(100, deadRatio * 100))}%`,
+                    backgroundColor: '#F59E0B',
+                  },
+                ]}
+              />
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.stepBtn,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => handleAdjustDeadzone(0.01)}
+            >
+              <Text style={styles.stepBtnText}>+</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.presetsRow}>
+            {DEADZONE_PRESETS.map((preset) => {
+              const isSelected =
+                Math.abs(settings.deadzone - preset.value) < 0.005;
+              return (
+                <Pressable
+                  key={preset.label}
+                  style={[
+                    styles.presetChip,
+                    isSelected && styles.presetChipActive,
+                  ]}
+                  onPress={() => updateSettings({ deadzone: preset.value })}
+                >
+                  <Text
+                    style={[
+                      styles.presetChipText,
+                      isSelected && styles.presetChipTextActive,
+                    ]}
+                  >
+                    {preset.label} ({(preset.value * 100).toFixed(0)}%)
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 4. Sensibilidade do Movimento */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>🌀 Sensibilidade do Acelerômetro</Text>
+            <Text style={styles.valBadge}>
               {settings.sensitivity.toFixed(1)}x
             </Text>
           </View>
           <Text style={styles.cardDescription}>
-            Ajuste a velocidade de resposta da bolinha ao inclinar o smartphone.
-            Valores menores facilitam passagens estreitas; valores maiores exigem
-            menos inclinação física.
+            Multiplicador de resposta ao ângulo de rotação do aparelho.
           </Text>
 
           <View style={styles.sliderRow}>
@@ -126,7 +393,8 @@ export default function SettingsScreen() {
                 style={[
                   styles.barFill,
                   {
-                    width: `${Math.max(4, Math.min(100, progressRatio * 100))}%`,
+                    width: `${Math.max(4, Math.min(100, sensRatio * 100))}%`,
+                    backgroundColor: '#38BDF8',
                   },
                 ]}
               />
@@ -170,10 +438,10 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* 2. Calibração do Acelerômetro */}
+        {/* 5. Calibração e Posição Neutra Atual */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Calibração e Posição Neutra</Text>
+            <Text style={styles.cardTitle}>Calibração Fina em Tempo Real</Text>
             <View
               style={[
                 styles.sensorStatusChip,
@@ -196,15 +464,14 @@ export default function SettingsScreen() {
           </View>
 
           <Text style={styles.cardDescription}>
-            Segure o smartphone na posição em que você se sente mais confortável
-            para jogar e toque em &quot;Calibrar Posição Atual&quot; para definir
-            esse ângulo como o ponto neutro (bolinha parada).
+            Segure o celular na sua postura preferida e toque abaixo para zerar a
+            bolinha exatamente neste ângulo.
           </Text>
 
           <View style={styles.calibrationPreviewBox}>
             <TiltIndicator tilt={tiltPreview} size={86} showCoordinates />
             <Text style={styles.offsetMetaText}>
-              Offset Neutro Salvo: X = {settings.calibration.x.toFixed(2)} | Y ={' '}
+              Offset Personalizado: X = {settings.calibration.x.toFixed(2)} | Y ={' '}
               {settings.calibration.y.toFixed(2)}
             </Text>
           </View>
@@ -218,7 +485,7 @@ export default function SettingsScreen() {
               onPress={handleCalibrateNow}
             >
               <Text style={styles.primaryCalBtnText}>
-                ⊕ Calibrar Posição Atual
+                ⊕ Calibrar Minha Posição Atual
               </Text>
             </Pressable>
 
@@ -230,24 +497,23 @@ export default function SettingsScreen() {
               onPress={handleResetCalibration}
             >
               <Text style={styles.secondaryCalBtnText}>
-                Restaurar Padrão (0, 0)
+                Restaurar Calibração Padrão
               </Text>
             </Pressable>
           </View>
         </View>
 
-        {/* 3. Opções Adicionais de Controle */}
+        {/* 6. Opções de Controle e Acessibilidade na Tela */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Opções de Controle</Text>
+          <Text style={styles.cardTitle}>Opções de Toque na Tela</Text>
 
           <View style={styles.toggleRow}>
             <View style={styles.toggleTextCol}>
               <Text style={styles.toggleLabel}>
-                Controles Simulados na Tela
+                Exibir Controles na Tela
               </Text>
               <Text style={styles.toggleSub}>
-                Exibe direcionais de inclinação na tela (útil para emulador ou
-                testes sem inclinar o aparelho)
+                Permite mover a bolinha tocando na tela com o dedo
               </Text>
             </View>
             <Switch
@@ -263,10 +529,10 @@ export default function SettingsScreen() {
           <View style={styles.toggleRow}>
             <View style={styles.toggleTextCol}>
               <Text style={styles.toggleLabel}>
-                Inverter Eixo Horizontal (Esquerda / Direita)
+                Inverter Eixo Horizontal (X)
               </Text>
               <Text style={styles.toggleSub}>
-                Inverte a resposta lateral do acelerômetro
+                Inverte a resposta esquerda/direita
               </Text>
             </View>
             <Switch
@@ -280,10 +546,10 @@ export default function SettingsScreen() {
           <View style={styles.toggleRow}>
             <View style={styles.toggleTextCol}>
               <Text style={styles.toggleLabel}>
-                Inverter Eixo Vertical (Cima / Baixo)
+                Inverter Eixo Vertical (Y)
               </Text>
               <Text style={styles.toggleSub}>
-                Inverte a resposta frontal/traseira do acelerômetro
+                Inverte a resposta cima/baixo
               </Text>
             </View>
             <Switch
@@ -292,48 +558,6 @@ export default function SettingsScreen() {
               trackColor={{ false: '#334155', true: '#0284C7' }}
               thumbColor="#F8FAFC"
             />
-          </View>
-        </View>
-
-        {/* 4. Instruções sobre Como Segurar e Inclinar o Smartphone */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>
-            Instruções: Como Segurar e Inclinar
-          </Text>
-
-          <View style={styles.instructionStep}>
-            <View style={styles.stepNumBadge}>
-              <Text style={styles.stepNumText}>1</Text>
-            </View>
-            <Text style={styles.instructionText}>
-              <Text style={styles.boldText}>Posição Inicial:</Text> Segure o
-              smartphone em modo retrato (vertical) com as duas mãos, levemente
-              inclinado na sua direção ou paralelo ao chão.
-            </Text>
-          </View>
-
-          <View style={styles.instructionStep}>
-            <View style={styles.stepNumBadge}>
-              <Text style={styles.stepNumText}>2</Text>
-            </View>
-            <Text style={styles.instructionText}>
-              <Text style={styles.boldText}>Movimentos Suaves:</Text> Incline
-              levemente para a esquerda ou direita para mover na horizontal, e
-              incline a ponta superior para frente ou para trás para subir ou
-              descer pelo labirinto.
-            </Text>
-          </View>
-
-          <View style={styles.instructionStep}>
-            <View style={styles.stepNumBadge}>
-              <Text style={styles.stepNumText}>3</Text>
-            </View>
-            <Text style={styles.instructionText}>
-              <Text style={styles.boldText}>Calibração Rápida:</Text> Se sentir
-              que precisa inclinar demais o pulso, use o botão{' '}
-              <Text style={styles.boldText}>⊕ Calibrar</Text> aqui ou durante a
-              partida para registrar sua postura atual como neutra.
-            </Text>
           </View>
         </View>
       </ScrollView>
@@ -417,9 +641,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     flex: 1,
   },
-  sensitivityBadge: {
+  valBadge: {
     color: '#38BDF8',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
     backgroundColor: '#0B1120',
     paddingHorizontal: 10,
@@ -432,6 +656,53 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 13,
     lineHeight: 18,
+  },
+  postureOptionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  postureCard: {
+    flex: 1,
+    backgroundColor: '#0B1120',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#1E293B',
+    alignItems: 'center',
+    gap: 4,
+  },
+  postureCardActive: {
+    borderColor: '#0284C7',
+    backgroundColor: 'rgba(2, 132, 199, 0.14)',
+  },
+  postureIcon: {
+    fontSize: 26,
+    marginBottom: 2,
+  },
+  postureTitle: {
+    color: '#F8FAFC',
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  postureDesc: {
+    color: '#94A3B8',
+    fontSize: 10.5,
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+  postureBadge: {
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  postureBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
   sliderRow: {
     flexDirection: 'row',
@@ -465,7 +736,6 @@ const styles = StyleSheet.create({
   },
   barFill: {
     height: '100%',
-    backgroundColor: '#38BDF8',
     borderRadius: 6,
   },
   presetsRow: {
@@ -476,11 +746,11 @@ const styles = StyleSheet.create({
   },
   presetChip: {
     flex: 1,
-    minWidth: '45%',
+    minWidth: '22%',
     backgroundColor: '#0B1120',
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#1E293B',
     alignItems: 'center',
@@ -491,11 +761,56 @@ const styles = StyleSheet.create({
   },
   presetChipText: {
     color: '#94A3B8',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   presetChipTextActive: {
     color: '#F8FAFC',
+  },
+  subConfigRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0B1120',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 6,
+    gap: 8,
+  },
+  subConfigTitle: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  subConfigDesc: {
+    color: '#94A3B8',
+    fontSize: 10.5,
+    marginTop: 2,
+  },
+  smallStepControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  smallStepBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallStepBtnText: {
+    color: '#F8FAFC',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  smallStepValue: {
+    color: '#38BDF8',
+    fontSize: 13,
+    fontWeight: '800',
+    minWidth: 32,
+    textAlign: 'center',
   },
   sensorStatusChip: {
     paddingHorizontal: 10,
@@ -569,38 +884,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
     lineHeight: 16,
-  },
-  instructionStep: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginTop: 4,
-  },
-  stepNumBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#1E293B',
-    borderWidth: 1,
-    borderColor: '#38BDF8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  stepNumText: {
-    color: '#38BDF8',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  instructionText: {
-    flex: 1,
-    color: '#CBD5E1',
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  boldText: {
-    color: '#F8FAFC',
-    fontWeight: '700',
   },
   pressed: {
     opacity: 0.8,

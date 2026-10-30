@@ -75,6 +75,16 @@ export interface CalibrationOffset {
 export interface GameSettings {
   /** Multiplicador de sensibilidade (0.4 a 2.5, padrão 1.0) */
   sensitivity: number;
+  /** Multiplicador geral de gravidade/aceleração da bolinha (0.5 a 2.5, padrão 1.25) */
+  gravityMultiplier: number;
+  /** Reforço de aceleração para baixo / descida no eixo vertical (1.0 a 1.6, padrão 1.2) */
+  downwardBoost: number;
+  /** Tamanho da zona morta / zona neutra (0.01 a 0.12, padrão 0.035) */
+  deadzone: number;
+  /** Postura padrão recomendada para a posição neutra */
+  postureMode: 'handheld' | 'table';
+  /** Tipo de controle simulado na tela: Joystick flutuante ou D-Pad */
+  virtualControlType: 'joystick' | 'dpad';
   /** Offset de calibração para posição neutra confortável */
   calibration: CalibrationOffset;
   /** Exibir controles simulados na tela para emulador/testes */
