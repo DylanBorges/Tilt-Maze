@@ -18,10 +18,12 @@ export const MAX_DOWNWARD_BOOST = 1.8;
 export const DEFAULT_DOWNWARD_BOOST = 1.2;
 
 /**
- * Offset padrão do eixo Y quando o celular é segurado naturalmente na mão
- * em modo retrato com ângulo de visão confortável (~40° a 50° em relação à horizontal).
+ * Limiar de inclinação do eixo Y onde a gravidade vertical equilibra.
+ * Segurando o celular naturalmente na mão (~35° a 90° vertical), smoothed.y varia entre ~0.55 e 1.0.
+ * Com este limiar em 0.20 (~12°), a bolinha está SEMPRE caindo rápido para baixo como na vida real.
+ * Ao inclinar o aparelho para cima/para trás (smoothed.y < 0.20), a força inverte e a bolinha sobe.
  */
-export const HANDHELD_NEUTRAL_PITCH_Y = 0.55;
+export const HANDHELD_PITCH_UP_THRESHOLD = 0.20;
 
 export function clampSensitivity(value: number): number {
   if (!Number.isFinite(value)) return 1.0;
@@ -102,7 +104,7 @@ export function mapRawAccelerometerToScreenAxes(
 /**
  * Processa a leitura do sensor aplicando:
  * 1. Filtragem passa-baixa de ruído
- * 2. Compensação de postura (Modo Na Mão em pé vs. Mesa deitado)
+ * 2. Gravidade vertical realista (sempre caindo rápido na mão / em pé; sobe ao inclinar para cima)
  * 3. Offset de calibração manual do usuário
  * 4. Zona morta suave configurável (deadzone)
  * 5. Reforço de descida vertical (downwardBoost)
@@ -115,24 +117,25 @@ export function processTiltInput(
 ): { smoothed: Vector2D; tilt: Vector2D } {
   const smoothed = applyLowPassFilter(previousSmoothed, mappedRaw);
 
-  // Se o modo for handheld (na mão / vertical), usamos a postura natural de ~45° como neutro.
-  // Ao inclinar o topo para a frente (para a bolinha descer), smoothed.y DIMINUI no acelerômetro,
-  // portanto a aceleração para baixo (+Y da tela) é proporcional a (postureOffsetY - smoothed.y).
-  const postureOffsetY =
-    settings.postureMode === 'handheld' ? HANDHELD_NEUTRAL_PITCH_Y : 0;
-
   const calibratedX = smoothed.x - (settings.calibration?.x ?? 0);
+
+  // O celular é sempre jogado na mão/em pé (postura vertical natural).
+  // Segurando o celular normalmente, smoothed.y é positivo e alto (0.5 a 1.0).
+  // A aceleração para baixo (+Y da tela) é (smoothed.y - HANDHELD_PITCH_UP_THRESHOLD).
+  // Ao inclinar o aparelho para cima/para trás (smoothed.y < HANDHELD_PITCH_UP_THRESHOLD),
+  // calibratedY fica negativo (-Y da tela), empurrando a bolinha para cima!
   const calibratedY =
-    (postureOffsetY - smoothed.y) - (settings.calibration?.y ?? 0);
+    (smoothed.y - HANDHELD_PITCH_UP_THRESHOLD) -
+    (settings.calibration?.y ?? 0);
 
   const deadzone = clampDeadzone(settings.deadzone);
   let filteredX = applyDeadzone(calibratedX, deadzone);
   let filteredY = applyDeadzone(calibratedY, deadzone);
 
-  // Reforço ergonômico para descida (quando Y > 0 / inclinação para frente)
+  // Reforço poderoso para descida rápida e realista como solicitado
   const downwardBoost = clampDownwardBoost(settings.downwardBoost);
   if (filteredY > 0) {
-    filteredY *= downwardBoost;
+    filteredY *= downwardBoost * 1.35;
   }
 
   const sensitivity = clampSensitivity(settings.sensitivity);

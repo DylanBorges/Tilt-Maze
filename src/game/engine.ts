@@ -12,9 +12,9 @@ import {
 } from '../types/game';
 
 export const DEFAULT_BALL_RADIUS = 0.31;
-const ACCELERATION_SCALE = 18.0;
-const DAMPING_FACTOR = 4.2;
-const MAX_SPEED = 6.2;
+const ACCELERATION_SCALE = 24.0;
+const DAMPING_FACTOR = 3.8;
+const MAX_SPEED = 8.5;
 const WALL_RESTITUTION = 0.12;
 const SUB_STEPS = 3;
 const HAZARD_TRIGGER_DIST = 0.37;

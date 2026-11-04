@@ -29,8 +29,10 @@ export function FloatingJoystick({
 
   const handleTouchStart = (e: GestureResponderEvent) => {
     if (disabled) return;
-    const { locationX, locationY } = e.nativeEvent;
-    startPosRef.current = { x: locationX, y: locationY };
+    const { pageX, pageY, locationX, locationY } = e.nativeEvent;
+    // Usa pageX/pageY para o cálculo do deslocamento do arrasto para evitar instabilidades
+    // causadas por sub-elementos renderizados sob o dedo
+    startPosRef.current = { x: pageX, y: pageY };
     setBasePos({ x: locationX, y: locationY });
     setKnobOffset({ x: 0, y: 0 });
     setActive(true);
@@ -39,9 +41,9 @@ export function FloatingJoystick({
 
   const handleTouchMove = (e: GestureResponderEvent) => {
     if (disabled || !active) return;
-    const { locationX, locationY } = e.nativeEvent;
-    const dx = locationX - startPosRef.current.x;
-    const dy = locationY - startPosRef.current.y;
+    const { pageX, pageY } = e.nativeEvent;
+    const dx = pageX - startPosRef.current.x;
+    const dy = pageY - startPosRef.current.y;
 
     const distance = Math.hypot(dx, dy);
     let clampedDx = dx;
@@ -55,7 +57,7 @@ export function FloatingJoystick({
 
     setKnobOffset({ x: clampedDx, y: clampedDy });
 
-    // Normaliza de -1.0 a +1.0 com precisão
+    // Normaliza de -1.0 a +1.0 com precisão (+X direita, +Y baixo)
     const normX = clampedDx / MAX_TRAVEL;
     const normY = clampedDy / MAX_TRAVEL;
     onTiltChange({ x: normX, y: normY });

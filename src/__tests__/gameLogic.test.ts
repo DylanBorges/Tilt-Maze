@@ -202,27 +202,38 @@ export function runValidationTests() {
     'Aumentar a sensibilidade deve ampliar a resposta aos movimentos.'
   );
 
-  // Teste de inclinação para frente e descida (eixo Y):
-  // Na postura natural 'handheld', inclinar o topo para a frente diminui y no sensor (ex: 0.1),
-  // resultando em aceleração positiva para baixo no labirinto (+Y).
-  const forwardTilt = processTiltInput(
-    { x: 0, y: 0.1 },
-    { x: 0, y: 0.1 },
+  // Teste de gravidade vertical e descida (eixo Y):
+  // Segurando o celular normalmente na mão / em pé (~45° a 90°), y é positivo no sensor (ex: 0.7),
+  // resultando em aceleração rápida e contínua para baixo no labirinto (+Y).
+  const handheldNormal = processTiltInput(
+    { x: 0, y: 0.7 },
+    { x: 0, y: 0.7 },
     { ...DEFAULT_SETTINGS, postureMode: 'handheld' }
   );
   assertOk(
-    forwardTilt.tilt.y > 0,
-    'Inclinar para a frente deve gerar aceleração positiva para baixo (+Y).'
+    handheldNormal.tilt.y > 0,
+    'Segurar o celular na mão deve gerar aceleração rápida para baixo (+Y).'
+  );
+
+  // Inclinar para cima / para trás (ex: y = 0.0) deve fazer a bolinha subir (-Y)
+  const tiltUpwards = processTiltInput(
+    { x: 0, y: 0.0 },
+    { x: 0, y: 0.0 },
+    { ...DEFAULT_SETTINGS, postureMode: 'handheld' }
+  );
+  assertOk(
+    tiltUpwards.tilt.y < 0,
+    'Inclinar para cima/trás deve gerar aceleração para cima (-Y).'
   );
 
   const normalGrav = processTiltInput(
-    { x: 0, y: 0.1 },
-    { x: 0, y: 0.1 },
+    { x: 0, y: 0.7 },
+    { x: 0, y: 0.7 },
     { ...DEFAULT_SETTINGS, gravityMultiplier: 1.0, downwardBoost: 1.0 }
   );
   const boostedGrav = processTiltInput(
-    { x: 0, y: 0.1 },
-    { x: 0, y: 0.1 },
+    { x: 0, y: 0.7 },
+    { x: 0, y: 0.7 },
     { ...DEFAULT_SETTINGS, gravityMultiplier: 1.8, downwardBoost: 1.4 }
   );
   assertOk(

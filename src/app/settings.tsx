@@ -139,52 +139,26 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* 1. Postura do Celular (Vertical Natural vs. Deitado) */}
+        {/* 1. Modo de Jogo e Gravidade Vertical */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>📱 Postura do Aparelho</Text>
+          <Text style={styles.cardTitle}>📱 Modo Celular Vertical (Gravidade Real)</Text>
           <Text style={styles.cardDescription}>
-            Escolha como você segura o celular para definir a posição neutra
-            (onde a bolinha fica totalmente parada).
+            O jogo é projetado para ser jogado segurando o aparelho na mão em posição vertical. A gravidade puxa a bolinha constantemente para baixo com alta velocidade, como na vida real. Para fazê-la subir pelo labirinto, basta inclinar o celular para cima / para trás.
           </Text>
 
-          <View style={styles.postureOptionsRow}>
-            <Pressable
-              style={[
-                styles.postureCard,
-                settings.postureMode === 'handheld' && styles.postureCardActive,
-              ]}
-              onPress={() => updateSettings({ postureMode: 'handheld' })}
-            >
-              <Text style={styles.postureIcon}>📱</Text>
-              <Text style={styles.postureTitle}>Na Mão / Em Pé</Text>
-              <Text style={styles.postureDesc}>
-                Inclinado a ~45° (Mais ergonômico e divertido)
-              </Text>
-              {settings.postureMode === 'handheld' && (
-                <View style={styles.postureBadge}>
-                  <Text style={styles.postureBadgeText}>✓ Ativo</Text>
-                </View>
-              )}
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.postureCard,
-                settings.postureMode === 'table' && styles.postureCardActive,
-              ]}
-              onPress={() => updateSettings({ postureMode: 'table' })}
-            >
-              <Text style={styles.postureIcon}>🛌</Text>
-              <Text style={styles.postureTitle}>Deitado / Mesa</Text>
-              <Text style={styles.postureDesc}>
-                Plano a 0° (Celular repousado sobre a mesa)
-              </Text>
-              {settings.postureMode === 'table' && (
-                <View style={styles.postureBadge}>
-                  <Text style={styles.postureBadgeText}>✓ Ativo</Text>
-                </View>
-              )}
-            </Pressable>
+          <View style={styles.postureCardActive}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: 24 }}>📱</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.postureTitle}>Vertical na Mão</Text>
+                <Text style={styles.postureDesc}>
+                  Gravidade natural ativa: cai rápido para baixo; sobe ao inclinar para cima.
+                </Text>
+              </View>
+              <View style={styles.postureBadge}>
+                <Text style={styles.postureBadgeText}>✓ Ativo</Text>
+              </View>
+            </View>
           </View>
         </View>
 

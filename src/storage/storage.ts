@@ -124,8 +124,7 @@ export function sanitizeSettings(raw: unknown): GameSettings {
       ? clampDeadzone(record.deadzone)
       : DEFAULT_SETTINGS.deadzone;
 
-  const postureMode =
-    record.postureMode === 'table' ? 'table' : DEFAULT_SETTINGS.postureMode;
+  const postureMode = 'handheld';
 
   const virtualControlType =
     record.virtualControlType === 'dpad'

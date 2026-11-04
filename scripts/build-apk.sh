@@ -17,7 +17,7 @@ export PATH="$SDK_DIR/cmdline-tools/latest/bin:$SDK_DIR/platform-tools:$PATH"
 
 echo "=== [1/2] Sincronizando código atualizado ==="
 mkdir -p "$BUILD_DIR"
-rsync -a --exclude '.git' --exclude 'android' "/home/dylan/Jogo rani/" "$BUILD_DIR/"
+rsync -a --exclude '/.git' "/home/dylan/Jogo rani/" "$BUILD_DIR/"
 
 cd "$BUILD_DIR"
 if [ ! -d "$BUILD_DIR/android" ]; then
